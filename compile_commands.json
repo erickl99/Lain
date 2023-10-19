@@ -1,0 +1,14 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Iinclude",
+      "-o",
+      "lainc",
+      "src/main.c"
+    ],
+    "directory": "/home/erick/programming/clang/lain",
+    "file": "/home/erick/programming/clang/lain/src/main.c",
+    "output": "/home/erick/programming/clang/lain/build/lainc"
+  }
+]
