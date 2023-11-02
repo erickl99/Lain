@@ -35,7 +35,22 @@ int main(int argc, char *argv[]) {
     exit(2);
   }
   char *source = read_file(argv[1]);
+  init_lexer(source);
+  printf("Tokens:\n");
+  token *tkn = get_token();
+  while (tkn->type != TOKEN_EOF && tkn->type != TOKEN_ERROR) {
+    printf("%s, %d\n", type_to_string(tkn->type), tkn->line);
+    if (tkn->type == TOKEN_STRING && tkn->lexeme[0] != '\0') {
+      free(tkn->lexeme);
+    }
+    free(tkn);
+    tkn = get_token();
+  }
+  if (tkn->type == TOKEN_ERROR) {
+    printf("An error occurred while lexing: %s %d\n", tkn->lexeme, tkn->line);
+  }
   free(source);
+  free(tkn);
   printf("We finished yay.\n");
   return 0;
 }
