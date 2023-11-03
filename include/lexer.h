@@ -5,16 +5,23 @@ typedef enum {
   TOKEN_AND,
   TOKEN_BANG,
   TOKEN_BANG_EQUAL,
-  TOKEN_BOOL,
+  TOKEN_CASE,
   TOKEN_COLON,
+  TOKEN_CONST,
+  TOKEN_DEFAULT,
+  TOKEN_DOT,
   TOKEN_EOF,
+  TOKEN_ELSE,
   TOKEN_EQUAL,
   TOKEN_EQUAL_EQUAL,
   TOKEN_ERROR,
+  TOKEN_FALSE,
   TOKEN_FLOAT,
+  TOKEN_FOR,
   TOKEN_GREATER,
   TOKEN_GREATER_EQUAL,
   TOKEN_IDENTIFIER,
+  TOKEN_IF,
   TOKEN_INT,
   TOKEN_LEFT_BRACE,
   TOKEN_LEFT_BRACKET,
@@ -33,11 +40,17 @@ typedef enum {
   TOKEN_RIGHT_BRACE,
   TOKEN_RIGHT_BRACKET,
   TOKEN_RIGHT_PAREN,
+  TOKEN_RETURN,
   TOKEN_SLASH,
   TOKEN_SLASH_EQUAL,
   TOKEN_STAR,
   TOKEN_STAR_EQUAL,
   TOKEN_STRING,
+  TOKEN_SWITCH,
+  TOKEN_TRUE,
+  TOKEN_TYPE,
+  TOKEN_VAR,
+  TOKEN_WHILE,
 } token_type;
 
 typedef struct {
@@ -48,6 +61,6 @@ typedef struct {
 
 void init_lexer(char *source);
 token *get_token();
-char *type_to_string(token_type type);
+void token_to_string(token *tkn);
 
 #endif

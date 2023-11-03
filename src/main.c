@@ -36,19 +36,20 @@ int main(int argc, char *argv[]) {
   }
   char *source = read_file(argv[1]);
   init_lexer(source);
+  printf("Received source:\n%s", source);
   printf("Tokens:\n");
   token *tkn = get_token();
   while (tkn->type != TOKEN_EOF && tkn->type != TOKEN_ERROR) {
-    printf("%s, %d\n", type_to_string(tkn->type), tkn->line);
-    if (tkn->type == TOKEN_STRING && tkn->lexeme[0] != '\0') {
+    token_to_string(tkn);
+    token_type type = tkn->type;
+    if (type == TOKEN_STRING || type == TOKEN_INT || type == TOKEN_INT ||
+        type == TOKEN_FLOAT) {
       free(tkn->lexeme);
     }
     free(tkn);
     tkn = get_token();
   }
-  if (tkn->type == TOKEN_ERROR) {
-    printf("An error occurred while lexing: %s %d\n", tkn->lexeme, tkn->line);
-  }
+  token_to_string(tkn);
   free(source);
   free(tkn);
   printf("We finished yay.\n");

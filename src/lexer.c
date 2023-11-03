@@ -53,10 +53,117 @@ static bool is_alpha(char c) {
 
 static bool is_digit(char c) { return c >= '0' && c <= '9'; }
 
-static token *identifier() { return create_token(TOKEN_IDENTIFIER); }
+static bool is_alphanum(char c) { return is_alpha(c) || is_digit(c); }
 
-//TODO: properly handle any whitespace or line breaks, support numbers that start with just a dot
-static token *number(int sign) { 
+static bool newline() {
+  char c = *glexer.curr;
+  return c == '\r' || c == '\n';
+}
+
+static bool compare_str(char *start, size_t length, char *word, size_t size) {
+  if (length != size) {
+    return false;
+  }
+  return memcmp(start, word, length) == 0;
+}
+
+static token *keyword_identifier(char *start, char *end) {
+  size_t length = end - start;
+  switch (*start) {
+  case 'c': {
+    switch (*(start + 1)) {
+    case 'a':
+      if (compare_str(start + 2, length - 2, "se", 2)) {
+        return create_token(TOKEN_CASE);
+      }
+      break;
+    case 'o':
+      if (compare_str(start + 2, length - 2, "nst", 3)) {
+        return create_token(TOKEN_CONST);
+      }
+      break;
+    }
+    break;
+  }
+  case 'd':
+    if (compare_str(start + 1, length - 1, "efault", 6)) {
+      return create_token(TOKEN_DEFAULT);
+    }
+    break;
+  case 'e':
+    if (compare_str(start + 1, length - 1, "lse", 3)) {
+      return create_token(TOKEN_ELSE);
+    }
+    break;
+  case 'f': {
+    switch (*(start + 1)) {
+    case 'a':
+      if (compare_str(start + 2, length - 2, "lse", 3)) {
+        return create_token(TOKEN_FALSE);
+      }
+      break;
+    case 'o':
+      if (compare_str(start + 2, length - 2, "r", 1)) {
+        return create_token(TOKEN_FOR);
+      }
+      break;
+    }
+    break;
+  }
+  case 'i':
+    if (compare_str(start + 1, length - 1, "f", 1)) {
+      return create_token(TOKEN_IF);
+    }
+    break;
+  case 'r':
+    if (compare_str(start + 1, length - 1, "eturn", 5)) {
+      return create_token(TOKEN_RETURN);
+    }
+    break;
+  case 's':
+    if (compare_str(start + 1, length - 1, "witch", 5)) {
+      return create_token(TOKEN_SWITCH);
+    }
+    break;
+  case 't': {
+    switch (*(start + 1)) {
+    case 'r':
+      if (compare_str(start + 2, length - 2, "ue", 2)) {
+        return create_token(TOKEN_TRUE);
+      }
+      break;
+    case 'y':
+      if (compare_str(start + 2, length - 2, "pe", 2)) {
+        return create_token(TOKEN_TYPE);
+      }
+      break;
+    }
+    break;
+  }
+  case 'v':
+    if (compare_str(start + 1, length - 1, "ar", 2)) {
+      return create_token(TOKEN_VAR);
+    }
+    break;
+  }
+  char *id_str = malloc(length + 1);
+  memcpy(id_str, start, length);
+  id_str[length] = '\0';
+  return create_full_token(TOKEN_IDENTIFIER, id_str);
+}
+
+static token *identifier() {
+  char *start = glexer.curr - 1;
+  while (is_alphanum(peek())) {
+    advance();
+  }
+  char *end = glexer.curr;
+  return keyword_identifier(start, end);
+}
+
+// TODO: properly handle any whitespace or line breaks, support numbers that
+// start with just a dot
+static token *number(int sign) {
   bool is_float = false;
   char *start = glexer.curr - 1;
   while (is_digit(peek())) {
@@ -74,17 +181,21 @@ static token *number(int sign) {
   char *num_str = malloc(size + 1);
   memcpy(num_str, start, size);
   num_str[size] = '\0';
-  printf("This is what we put into num_str: |%s|\n", num_str);
-  free(num_str);
   advance();
-  return create_token(TOKEN_INT);
+  if (is_float) {
+    return create_full_token(TOKEN_FLOAT, num_str);
+  } else {
+    return create_full_token(TOKEN_INT, num_str);
+  }
 }
 
-//TODO: add proper support for multiline strings
 static token *string() {
   char *start = glexer.curr;
-  while (peek() != '"' && !finished()) {
+  while (peek() != '"' && !newline() && !finished()) {
     advance();
+  }
+  if (newline()) {
+    return error_token("unexpected terminated string literal");
   }
   if (finished()) {
     return error_token("unexpected terminated string literal");
@@ -95,13 +206,27 @@ static token *string() {
   memcpy(str, start, size);
   str[size] = '\0';
   advance();
-  printf("Created string %s\n", str);
   return create_full_token(TOKEN_STRING, str);
 }
 
 static void skip_whitespace() {
   for (;;) {
     switch (advance()) {
+    case '\\': {
+      if (peek() == '\\') {
+        advance();
+        while (!newline() && !finished()) {
+          char dd = advance();
+        }
+        if (!finished()) {
+          glexer.line++;
+          advance();
+        }
+      } else {
+        *glexer.curr = -1;
+      }
+      return;
+    }
     case '\r':
       if (peek() == '\n') {
         advance();
@@ -164,7 +289,7 @@ token *get_token() {
       advance();
       return create_token(TOKEN_MINUS_MINUS);
     default:
-      if (is_digit(d)) {
+      if (is_digit(d) || d == '.') {
         return number(-1);
       }
       return create_token(TOKEN_MINUS);
@@ -236,6 +361,12 @@ token *get_token() {
   }
   case '%':
     return create_token(TOKEN_PERCENT);
+  case '.':
+    if (is_digit(peek())) {
+      return number(1);
+    } else {
+      return create_token(TOKEN_DOT);
+    }
   case '?':
     return create_token(TOKEN_QUESTION);
   case ':':
@@ -247,80 +378,156 @@ token *get_token() {
   }
 }
 
-char *type_to_string(token_type type) {
-  switch (type) {
+void token_to_string(token *tkn) {
+  switch (tkn->type) {
   case TOKEN_AND:
-    return "&&";
+    printf("AND && %d\n", tkn->line);
+    return;
   case TOKEN_BANG:
-    return "!";
+    printf("BANG ! %d\n", tkn->line);
+    return;
   case TOKEN_BANG_EQUAL:
-    return "!=";
-  case TOKEN_BOOL:
-    return "bool";
+    printf("BANG_EQUAL != %d\n", tkn->line);
+    return;
+  case TOKEN_CASE:
+    printf("CASE case %d\n", tkn->line);
+    return;
   case TOKEN_COLON:
-    return ":";
+    printf("COLON : %d\n", tkn->line);
+    return;
+  case TOKEN_CONST:
+    printf("CONST const %d\n", tkn->line);
+    return;
+  case TOKEN_DEFAULT:
+    printf("DEFAULT default %d\n", tkn->line);
+    return;
+  case TOKEN_DOT:
+    printf("DOT . %d\n", tkn->line);
+    return;
+  case TOKEN_ELSE:
+    printf("ELSE = %d\n", tkn->line);
+    return;
   case TOKEN_EQUAL:
-    return "=";
+    printf("EQUAL = %d\n", tkn->line);
+    return;
   case TOKEN_EQUAL_EQUAL:
-    return "==";
+    printf("EQUAL_EQUAL == %d\n", tkn->line);
+    return;
   case TOKEN_EOF:
-    return "EOF";
+    printf("EOF %d\n", tkn->line);
+    return;
   case TOKEN_ERROR:
-    return "error";
+    printf("ERROR: %s at line %d\n", tkn->lexeme, tkn->line);
+    return;
+  case TOKEN_FALSE:
+    printf("FALSE %d\n", tkn->line);
+    return;
   case TOKEN_FLOAT:
-    return "float";
+    printf("FLOAT |%s| %d\n", tkn->lexeme, tkn->line);
+    return;
+  case TOKEN_FOR:
+    printf("FOR for %d\n", tkn->line);
+    return;
   case TOKEN_GREATER:
-    return ">";
+    printf("GREATER > %d\n", tkn->line);
+    return;
   case TOKEN_GREATER_EQUAL:
-    return ">=";
+    printf("GREATER_EQUAL >= %d\n", tkn->line);
+    return;
   case TOKEN_IDENTIFIER:
-    return "identifier";
+    printf("IDENTIFIER '%s' %d\n", tkn->lexeme, tkn->line);
+    return;
+  case TOKEN_IF:
+    printf("IF if %d\n", tkn->line);
+    return;
   case TOKEN_INT:
-    return "int";
+    printf("INT |%s| %d\n", tkn->lexeme, tkn->line);
+    return;
   case TOKEN_LEFT_BRACE:
-    return "{";
+    printf("LEFT_BRACE { %d\n", tkn->line);
+    return;
   case TOKEN_LEFT_BRACKET:
-    return "[";
+    printf("LEFT_BRACKET [ %d\n", tkn->line);
+    return;
   case TOKEN_LEFT_PAREN:
-    return "(";
+    printf("LEFT_PAREN ( %d\n", tkn->line);
+    return;
   case TOKEN_LESS:
-    return "<";
+    printf("LESS < %d\n", tkn->line);
+    return;
   case TOKEN_LESS_EQUAL:
-    return "<=";
+    printf("LESS_EQUAL <= %d\n", tkn->line);
+    return;
   case TOKEN_MINUS:
-    return "-";
+    printf("MINUS - %d\n", tkn->line);
+    return;
   case TOKEN_MINUS_EQUAL:
-    return "-=";
+    printf("MINUS_EQUAL -= %d\n", tkn->line);
+    return;
   case TOKEN_MINUS_MINUS:
-    return "--";
+    printf("MINUS_MINUS -- %d\n", tkn->line);
+    return;
   case TOKEN_OR:
-    return "||";
+    printf("OR || %d\n", tkn->line);
+    return;
   case TOKEN_PERCENT:
-    return "%";
+    printf("PERCENT %% %d\n", tkn->line);
+    return;
   case TOKEN_PLUS:
-    return "+";
+    printf("PLUS + %d\n", tkn->line);
+    return;
   case TOKEN_PLUS_EQUAL:
-    return "+=";
+    printf("PLUS_EQUAL += %d\n", tkn->line);
+    return;
   case TOKEN_PLUS_PLUS:
-    return "++";
+    printf("PLUS_PLUS ++ %d\n", tkn->line);
+    return;
+  case TOKEN_RETURN:
+    printf("RETURN return %d\n", tkn->line);
+    return;
   case TOKEN_QUESTION:
-    return "?";
+    printf("QUESTION ? %d\n", tkn->line);
+    return;
   case TOKEN_RIGHT_BRACE:
-    return "}";
+    printf("RIGHT_BRACE } %d\n", tkn->line);
+    return;
   case TOKEN_RIGHT_BRACKET:
-    return "]";
+    printf("RIGHT_BRACKET ] %d\n", tkn->line);
+    return;
   case TOKEN_RIGHT_PAREN:
-    return ")";
+    printf("RIGHT_PAREN ) %d\n", tkn->line);
+    return;
   case TOKEN_SLASH:
-    return "/";
+    printf("SLASH / %d\n", tkn->line);
+    return;
   case TOKEN_SLASH_EQUAL:
-    return "/=";
+    printf("SLASH_EQUAL /= %d\n", tkn->line);
+    return;
   case TOKEN_STAR:
-    return "*";
+    printf("STAR * %d\n", tkn->line);
+    return;
   case TOKEN_STAR_EQUAL:
-    return "*=";
+    printf("STAR_EQUAL *= %d\n", tkn->line);
+    return;
   case TOKEN_STRING:
-    return "str";
+    printf("STRING \"%s\" %d\n", tkn->lexeme, tkn->line);
+    return;
+  case TOKEN_SWITCH:
+    printf("SWITCH switch %d\n", tkn->line);
+    return;
+  case TOKEN_TRUE:
+    printf("TRUE true %d\n", tkn->line);
+    return;
+  case TOKEN_TYPE:
+    printf("TYPE type %d\n", tkn->line);
+    return;
+  case TOKEN_VAR:
+    printf("VAR var %d\n", tkn->line);
+    return;
+  case TOKEN_WHILE:
+    printf("WHILE while %d\n", tkn->line);
+    return;
   }
-  return "invalid token";
+  printf("Received invalid token: %d", tkn->type);
+  return;
 }
