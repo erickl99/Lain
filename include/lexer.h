@@ -59,7 +59,7 @@ typedef struct {
   char *lexeme;
 } token;
 
-void init_lexer(char *source);
+void init_lexer(char *source, token *tkn);
 token *get_token();
 void token_to_string(token *tkn);
 

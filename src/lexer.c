@@ -8,37 +8,36 @@
 typedef struct {
   char *curr;
   int line;
+  token *tkn;
 } lexer;
 
 lexer glexer;
 
-void init_lexer(char *source) {
+void init_lexer(char *source, token *tkn) {
   glexer.curr = source;
   glexer.line = 1;
+  glexer.tkn = tkn;
 }
 
 static token *create_token(token_type type) {
-  token *new_token = malloc(sizeof(token));
-  new_token->line = glexer.line;
-  new_token->type = type;
-  new_token->lexeme = NULL;
-  return new_token;
+  glexer.tkn->line = glexer.line;
+  glexer.tkn->type = type;
+  glexer.tkn->lexeme = NULL;
+  return glexer.tkn;
 }
 
 static token *create_full_token(token_type type, char *lexeme) {
-  token *new_token = malloc(sizeof(token));
-  new_token->line = glexer.line;
-  new_token->type = type;
-  new_token->lexeme = lexeme;
-  return new_token;
+  glexer.tkn->line = glexer.line;
+  glexer.tkn->type = type;
+  glexer.tkn->lexeme = lexeme;
+  return glexer.tkn;
 }
 
 static token *error_token(char *message) {
-  token *new_token = malloc(sizeof(token));
-  new_token->line = glexer.line;
-  new_token->type = TOKEN_ERROR;
-  new_token->lexeme = message;
-  return new_token;
+  glexer.tkn->line = glexer.line;
+  glexer.tkn->type = TOKEN_ERROR;
+  glexer.tkn->lexeme = message;
+  return glexer.tkn;
 }
 
 static char advance() { return *glexer.curr++; }
@@ -420,7 +419,7 @@ void token_to_string(token *tkn) {
     printf("ERROR: %s at line %d\n", tkn->lexeme, tkn->line);
     return;
   case TOKEN_FALSE:
-    printf("FALSE %d\n", tkn->line);
+    printf("FALSE false %d\n", tkn->line);
     return;
   case TOKEN_FLOAT:
     printf("FLOAT |%s| %d\n", tkn->lexeme, tkn->line);
