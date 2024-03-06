@@ -19,16 +19,18 @@ void init_lexer(char *source, token *tkn) {
   glexer.tkn = tkn;
 }
 
-static token *create_token(token_type type) {
+static token *create_basic_token(token_type type) {
   glexer.tkn->line = glexer.line;
   glexer.tkn->type = type;
+  glexer.tkn->size = 0;
   glexer.tkn->lexeme = NULL;
   return glexer.tkn;
 }
 
-static token *create_full_token(token_type type, char *lexeme) {
+static token *create_full_token(token_type type, char *lexeme, size_t size) {
   glexer.tkn->line = glexer.line;
   glexer.tkn->type = type;
+  glexer.tkn->size = size;
   glexer.tkn->lexeme = lexeme;
   return glexer.tkn;
 }
@@ -37,6 +39,7 @@ static token *error_token(char *message) {
   glexer.tkn->line = glexer.line;
   glexer.tkn->type = TOKEN_ERROR;
   glexer.tkn->lexeme = message;
+  glexer.tkn->size = strlen(message);
   return glexer.tkn;
 }
 
@@ -73,12 +76,12 @@ static token *keyword_identifier(char *start, char *end) {
     switch (*(start + 1)) {
     case 'a':
       if (compare_str(start + 2, length - 2, "se", 2)) {
-        return create_token(TOKEN_CASE);
+        return create_basic_token(TOKEN_CASE);
       }
       break;
     case 'o':
       if (compare_str(start + 2, length - 2, "nst", 3)) {
-        return create_token(TOKEN_CONST);
+        return create_basic_token(TOKEN_CONST);
       }
       break;
     }
@@ -86,24 +89,24 @@ static token *keyword_identifier(char *start, char *end) {
   }
   case 'd':
     if (compare_str(start + 1, length - 1, "efault", 6)) {
-      return create_token(TOKEN_DEFAULT);
+      return create_basic_token(TOKEN_DEFAULT);
     }
     break;
   case 'e':
     if (compare_str(start + 1, length - 1, "lse", 3)) {
-      return create_token(TOKEN_ELSE);
+      return create_basic_token(TOKEN_ELSE);
     }
     break;
   case 'f': {
     switch (*(start + 1)) {
     case 'a':
       if (compare_str(start + 2, length - 2, "lse", 3)) {
-        return create_token(TOKEN_FALSE);
+        return create_basic_token(TOKEN_FALSE);
       }
       break;
     case 'o':
       if (compare_str(start + 2, length - 2, "r", 1)) {
-        return create_token(TOKEN_FOR);
+        return create_basic_token(TOKEN_FOR);
       }
       break;
     }
@@ -111,29 +114,29 @@ static token *keyword_identifier(char *start, char *end) {
   }
   case 'i':
     if (compare_str(start + 1, length - 1, "f", 1)) {
-      return create_token(TOKEN_IF);
+      return create_basic_token(TOKEN_IF);
     }
     break;
   case 'r':
     if (compare_str(start + 1, length - 1, "eturn", 5)) {
-      return create_token(TOKEN_RETURN);
+      return create_basic_token(TOKEN_RETURN);
     }
     break;
   case 's':
     if (compare_str(start + 1, length - 1, "witch", 5)) {
-      return create_token(TOKEN_SWITCH);
+      return create_basic_token(TOKEN_SWITCH);
     }
     break;
   case 't': {
     switch (*(start + 1)) {
     case 'r':
       if (compare_str(start + 2, length - 2, "ue", 2)) {
-        return create_token(TOKEN_TRUE);
+        return create_basic_token(TOKEN_TRUE);
       }
       break;
     case 'y':
       if (compare_str(start + 2, length - 2, "pe", 2)) {
-        return create_token(TOKEN_TYPE);
+        return create_basic_token(TOKEN_TYPE);
       }
       break;
     }
@@ -141,14 +144,11 @@ static token *keyword_identifier(char *start, char *end) {
   }
   case 'v':
     if (compare_str(start + 1, length - 1, "ar", 2)) {
-      return create_token(TOKEN_VAR);
+      return create_basic_token(TOKEN_VAR);
     }
     break;
   }
-  char *id_str = malloc(length + 1);
-  memcpy(id_str, start, length);
-  id_str[length] = '\0';
-  return create_full_token(TOKEN_IDENTIFIER, id_str);
+  return create_full_token(TOKEN_IDENTIFIER, start, length);
 }
 
 static token *identifier() {
@@ -177,14 +177,11 @@ static token *number(int sign) {
   }
   char *end = glexer.curr;
   size_t size = end - start;
-  char *num_str = malloc(size + 1);
-  memcpy(num_str, start, size);
-  num_str[size] = '\0';
   advance();
   if (is_float) {
-    return create_full_token(TOKEN_FLOAT, num_str);
+    return create_full_token(TOKEN_FLOAT, start, size);
   } else {
-    return create_full_token(TOKEN_INT, num_str);
+    return create_full_token(TOKEN_INT, start, size);
   }
 }
 
@@ -201,11 +198,8 @@ static token *string() {
   }
   char *end = glexer.curr;
   size_t size = end - start;
-  char *str = malloc(size + 1);
-  memcpy(str, start, size);
-  str[size] = '\0';
   advance();
-  return create_full_token(TOKEN_STRING, str);
+  return create_full_token(TOKEN_STRING, start, size);
 }
 
 static void skip_whitespace() {
@@ -215,14 +209,12 @@ static void skip_whitespace() {
       if (peek() == '\\') {
         advance();
         while (!newline() && !finished()) {
-          char dd = advance();
+          advance();
         }
         if (!finished()) {
           glexer.line++;
           advance();
         }
-      } else {
-        *glexer.curr = -1;
       }
       return;
     }
@@ -255,27 +247,27 @@ token *get_token() {
   case '"':
     return string();
   case '(':
-    return create_token(TOKEN_LEFT_PAREN);
+    return create_basic_token(TOKEN_LEFT_PAREN);
   case ')':
-    return create_token(TOKEN_RIGHT_PAREN);
+    return create_basic_token(TOKEN_RIGHT_PAREN);
   case '{':
-    return create_token(TOKEN_LEFT_BRACE);
+    return create_basic_token(TOKEN_LEFT_BRACE);
   case '}':
-    return create_token(TOKEN_RIGHT_BRACE);
+    return create_basic_token(TOKEN_RIGHT_BRACE);
   case '[':
-    return create_token(TOKEN_LEFT_BRACKET);
+    return create_basic_token(TOKEN_LEFT_BRACKET);
   case ']':
-    return create_token(TOKEN_RIGHT_BRACKET);
+    return create_basic_token(TOKEN_RIGHT_BRACKET);
   case '+': {
     switch (peek()) {
     case '=':
       advance();
-      return create_token(TOKEN_PLUS_EQUAL);
+      return create_basic_token(TOKEN_PLUS_EQUAL);
     case '+':
       advance();
-      return create_token(TOKEN_PLUS_PLUS);
+      return create_basic_token(TOKEN_PLUS_PLUS);
     default:
-      return create_token(TOKEN_PLUS);
+      return create_basic_token(TOKEN_PLUS);
     }
   }
   case '-': {
@@ -283,69 +275,69 @@ token *get_token() {
     switch (peek()) {
     case '=':
       advance();
-      return create_token(TOKEN_MINUS_EQUAL);
+      return create_basic_token(TOKEN_MINUS_EQUAL);
     case '-':
       advance();
-      return create_token(TOKEN_MINUS_MINUS);
+      return create_basic_token(TOKEN_MINUS_MINUS);
     default:
       if (is_digit(d) || d == '.') {
         return number(-1);
       }
-      return create_token(TOKEN_MINUS);
+      return create_basic_token(TOKEN_MINUS);
     }
   }
   case '*': {
     if (peek() == '=') {
       advance();
-      return create_token(TOKEN_STAR_EQUAL);
+      return create_basic_token(TOKEN_STAR_EQUAL);
     } else {
-      return create_token(TOKEN_STAR);
+      return create_basic_token(TOKEN_STAR);
     }
   }
   case '/': {
     if (peek() == '=') {
       advance();
-      return create_token(TOKEN_SLASH_EQUAL);
+      return create_basic_token(TOKEN_SLASH_EQUAL);
     } else {
-      return create_token(TOKEN_SLASH);
+      return create_basic_token(TOKEN_SLASH);
     }
   }
   case '=': {
     if (peek() == '=') {
       advance();
-      return create_token(TOKEN_EQUAL_EQUAL);
+      return create_basic_token(TOKEN_EQUAL_EQUAL);
     } else {
-      return create_token(TOKEN_EQUAL);
+      return create_basic_token(TOKEN_EQUAL);
     }
   }
   case '<': {
     if (peek() == '=') {
       advance();
-      return create_token(TOKEN_LESS_EQUAL);
+      return create_basic_token(TOKEN_LESS_EQUAL);
     } else {
-      return create_token(TOKEN_LESS);
+      return create_basic_token(TOKEN_LESS);
     }
   }
   case '>': {
     if (peek() == '=') {
       advance();
-      return create_token(TOKEN_GREATER_EQUAL);
+      return create_basic_token(TOKEN_GREATER_EQUAL);
     } else {
-      return create_token(TOKEN_GREATER);
+      return create_basic_token(TOKEN_GREATER);
     }
   }
   case '!': {
     if (peek() == '=') {
       advance();
-      return create_token(TOKEN_BANG_EQUAL);
+      return create_basic_token(TOKEN_BANG_EQUAL);
     } else {
-      return create_token(TOKEN_BANG);
+      return create_basic_token(TOKEN_BANG);
     }
   }
   case '&': {
     if (peek() == '&') {
       advance();
-      return create_token(TOKEN_AND);
+      return create_basic_token(TOKEN_AND);
     } else {
       return error_token("invalid syntax");
     }
@@ -353,25 +345,25 @@ token *get_token() {
   case '|': {
     if (peek() == '|') {
       advance();
-      return create_token(TOKEN_OR);
+      return create_basic_token(TOKEN_OR);
     } else {
       return error_token("invalid syntax");
     }
   }
   case '%':
-    return create_token(TOKEN_PERCENT);
+    return create_basic_token(TOKEN_PERCENT);
   case '.':
     if (is_digit(peek())) {
       return number(1);
     } else {
-      return create_token(TOKEN_DOT);
+      return create_basic_token(TOKEN_DOT);
     }
   case '?':
-    return create_token(TOKEN_QUESTION);
+    return create_basic_token(TOKEN_QUESTION);
   case ':':
-    return create_token(TOKEN_COLON);
+    return create_basic_token(TOKEN_COLON);
   case '\0':
-    return create_token(TOKEN_EOF);
+    return create_basic_token(TOKEN_EOF);
   default:
     return error_token("Encountered unexpected character");
   }
@@ -422,7 +414,7 @@ void token_to_string(token *tkn) {
     printf("FALSE false %d\n", tkn->line);
     return;
   case TOKEN_FLOAT:
-    printf("FLOAT |%s| %d\n", tkn->lexeme, tkn->line);
+    printf("FLOAT |%.*s| %d\n", (int)tkn->size, tkn->lexeme, tkn->line);
     return;
   case TOKEN_FOR:
     printf("FOR for %d\n", tkn->line);
@@ -434,13 +426,13 @@ void token_to_string(token *tkn) {
     printf("GREATER_EQUAL >= %d\n", tkn->line);
     return;
   case TOKEN_IDENTIFIER:
-    printf("IDENTIFIER '%s' %d\n", tkn->lexeme, tkn->line);
+    printf("IDENTIFIER '%.*s' %d\n", (int)tkn->size, tkn->lexeme, tkn->line);
     return;
   case TOKEN_IF:
     printf("IF if %d\n", tkn->line);
     return;
   case TOKEN_INT:
-    printf("INT |%s| %d\n", tkn->lexeme, tkn->line);
+    printf("INT |%.*s| %d\n", (int)tkn->size, tkn->lexeme, tkn->line);
     return;
   case TOKEN_LEFT_BRACE:
     printf("LEFT_BRACE { %d\n", tkn->line);
@@ -509,7 +501,7 @@ void token_to_string(token *tkn) {
     printf("STAR_EQUAL *= %d\n", tkn->line);
     return;
   case TOKEN_STRING:
-    printf("STRING \"%s\" %d\n", tkn->lexeme, tkn->line);
+    printf("STRING \"%.*s\" %d\n", (int)tkn->size, tkn->lexeme, tkn->line);
     return;
   case TOKEN_SWITCH:
     printf("SWITCH switch %d\n", tkn->line);

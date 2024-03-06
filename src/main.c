@@ -29,12 +29,7 @@ char *read_file(char *file_path) {
   return bytes;
 }
 
-int main(int argc, char *argv[]) {
-  if (argc < 2) {
-    fprintf(stderr, "Usage: lainc <file>\n");
-    exit(2);
-  }
-  char *source = read_file(argv[1]);
+void lexer_debug(char *source) {
   token *tkn = malloc(sizeof(token));
   init_lexer(source, tkn);
   printf("Received source:\n%s", source);
@@ -43,15 +38,39 @@ int main(int argc, char *argv[]) {
   while (tkn->type != TOKEN_EOF && tkn->type != TOKEN_ERROR) {
     token_to_string(tkn);
     token_type type = tkn->type;
+    tkn = get_token();
+  }
+  token_to_string(tkn);
+  free(source);
+  free(tkn);
+}
+
+void make_ast(char *source) {
+  token *tkn = malloc(sizeof(token));
+  init_lexer(source, tkn);
+  tkn = get_token();
+  while (tkn->type != TOKEN_EOF && tkn->type != TOKEN_ERROR) {
+    token_type type = tkn->type;
     if (type == TOKEN_STRING || type == TOKEN_INT || type == TOKEN_INT ||
         type == TOKEN_FLOAT || type == TOKEN_IDENTIFIER) {
       free(tkn->lexeme);
     }
     tkn = get_token();
   }
-  token_to_string(tkn);
-  free(source);
   free(tkn);
+}
+
+int main(int argc, char *argv[]) {
+  if (argc < 2) {
+    fprintf(stderr, "Usage: lainc <file>\n");
+    exit(2);
+  }
+  char *source = read_file(argv[1]);
+  if (argc == 3) {
+    lexer_debug(source);
+  } else {
+    make_ast(source);
+  }
   printf("We finished yay.\n");
   return 0;
 }
