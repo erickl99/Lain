@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "parser.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -37,7 +38,6 @@ void lexer_debug(char *source) {
   tkn = get_token();
   while (tkn->type != TOKEN_EOF && tkn->type != TOKEN_ERROR) {
     token_to_string(tkn);
-    token_type type = tkn->type;
     tkn = get_token();
   }
   token_to_string(tkn);
@@ -48,15 +48,7 @@ void lexer_debug(char *source) {
 void make_ast(char *source) {
   token *tkn = malloc(sizeof(token));
   init_lexer(source, tkn);
-  tkn = get_token();
-  while (tkn->type != TOKEN_EOF && tkn->type != TOKEN_ERROR) {
-    token_type type = tkn->type;
-    if (type == TOKEN_STRING || type == TOKEN_INT || type == TOKEN_INT ||
-        type == TOKEN_FLOAT || type == TOKEN_IDENTIFIER) {
-      free(tkn->lexeme);
-    }
-    tkn = get_token();
-  }
+  parse();
   free(tkn);
 }
 
