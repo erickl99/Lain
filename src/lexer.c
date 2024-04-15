@@ -160,9 +160,7 @@ static token *identifier() {
   return keyword_identifier(start, end);
 }
 
-// TODO: properly handle any whitespace or line breaks, support numbers that
-// start with just a dot
-static token *number(int sign) {
+static token *number() {
   bool is_float = false;
   char *start = glexer.curr - 1;
   while (is_digit(peek())) {
@@ -205,8 +203,8 @@ static token *string() {
 static void skip_whitespace() {
   for (;;) {
     switch (advance()) {
-    case '\\': {
-      if (peek() == '\\') {
+    case '/': {
+      if (peek() == '/') {
         advance();
         while (!newline() && !finished()) {
           advance();
@@ -214,6 +212,7 @@ static void skip_whitespace() {
         if (!finished()) {
           glexer.line++;
           advance();
+          continue;
         }
       }
       return;
@@ -241,7 +240,7 @@ token *get_token() {
   if (is_alpha(c)) {
     return identifier();
   } else if (is_digit(c)) {
-    return number(1);
+    return number();
   }
   switch (c) {
   case '"':
@@ -281,7 +280,7 @@ token *get_token() {
       return create_basic_token(TOKEN_MINUS_MINUS);
     default:
       if (is_digit(d) || d == '.') {
-        return number(-1);
+        return number();
       }
       return create_basic_token(TOKEN_MINUS);
     }
@@ -354,7 +353,7 @@ token *get_token() {
     return create_basic_token(TOKEN_PERCENT);
   case '.':
     if (is_digit(peek())) {
-      return number(1);
+      return number();
     } else {
       return create_basic_token(TOKEN_DOT);
     }

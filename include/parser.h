@@ -14,6 +14,6 @@ typedef struct {
   node_type of;
 } ln_expr;
 
-void parse();
+int parse();
 
 #endif
